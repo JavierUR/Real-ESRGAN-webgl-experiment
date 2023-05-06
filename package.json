@@ -1,0 +1,22 @@
+{
+  "name": "esgan-webpage",
+  "version": "1.0.0",
+  "description": "webpage to try real-esrgan",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx webpack",
+    "serve": "npm run build && npx light-server -s . -p 8080"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "light-server": "^2.9.1",
+    "onnxruntime-web": "^1.14.0"
+  },
+  "devDependencies": {
+    "copy-webpack": "^2.0.5",
+    "webpack": "^5.79.0",
+    "webpack-cli": "^5.0.1"
+  }
+}
