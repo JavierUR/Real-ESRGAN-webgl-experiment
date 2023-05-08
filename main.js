@@ -76,8 +76,11 @@ async function tileProc(inputTensor){
   const outBOffset = outImageW*outImageH*2;
 
   const tileSize = 128;
-  const tilesx = Math.ceil( inputDims[3] / tileSize );
-  const tilesy = Math.ceil( inputDims[2] / tileSize );
+  const tilePadding = 12;
+  const tileSizePre = tileSize - tilePadding*2;
+  
+  const tilesx = Math.ceil( inputDims[3] / tileSizePre );
+  const tilesy = Math.ceil( inputDims[2] / tileSizePre );
 
   const data = inputTensor.data;
 
@@ -88,22 +91,30 @@ async function tileProc(inputTensor){
   for (let i = 0; i < tilesx; i++) {
     for (let j = 0; j < tilesy; j++) {
       const ti = Date.now();
-      const tileW = Math.min(tileSize, imageW - i * tileSize);
-      const tileH = Math.min(tileSize, imageH - j * tileSize);
+      const tileW = Math.min(tileSizePre, imageW - i * tileSizePre);
+      const tileH = Math.min(tileSizePre, imageH - j * tileSizePre);
       console.log("tileW: " + tileW + " tileH: " + tileH);
       const tileROffset = 0;
       const tileGOffset = tileSize*tileSize;
       const tileBOffset = tileSize*tileSize*2;
 
       const tileData = new Float32Array(tileSize*tileSize*3);
-      for (let xp = 0; xp < tileSize; xp++) {
-        for (let yp = 0; yp < tileSize; yp++) {
-          const x = xp < tileW ? xp : tileW - 1;
-          const y = yp < tileH ? yp : tileH - 1;
-          const idx = (i * tileSize + x) + (j * tileSize + y) * imageW;
-          tileData[x + y * tileSize + tileROffset] = data[idx + rOffset];
-          tileData[x + y * tileSize + tileGOffset] = data[idx + gOffset];
-          tileData[x + y * tileSize + tileBOffset] = data[idx + bOffset];
+      for (let xp = -tilePadding; xp < (tileSizePre+tilePadding); xp++) {
+        for (let yp = -tilePadding; yp < (tileSizePre+tilePadding); yp++) {
+          var xim = i * tileSizePre + xp;
+          if (xim < 0) xim = 0;
+          else if (xim >= imageW) xim = imageW - 1;
+          var yim = j * tileSizePre + yp;
+          if (yim < 0) yim = 0;
+          else if (yim >= imageH) yim = imageH - 1;
+          const idx = (xim + yim * imageW);
+
+          const xt = xp + tilePadding;
+          const yt = yp + tilePadding;
+          //const idx = (i * tileSize + x) + (j * tileSize + y) * imageW;
+          tileData[xt + yt * tileSize + tileROffset] = data[idx + rOffset];
+          tileData[xt + yt * tileSize + tileGOffset] = data[idx + gOffset];
+          tileData[xt + yt * tileSize + tileBOffset] = data[idx + bOffset];
         }
       }
 
@@ -117,18 +128,23 @@ async function tileProc(inputTensor){
       const outTileW = tileW*4;
       const outTileH = tileH*4;
       const outTileSize = tileSize*4;
+      const outTileSizePre = tileSizePre*4;
 
       const outTileROffset = 0;
       const outTileGOffset = outTileSize*outTileSize;
       const outTileBOffset = outTileSize*outTileSize*2;
 
       // add tile to output
-      for (let x = 0; x < outTileW; x++) {
+      for (let x = 0; x < outTileW ; x++) {
         for (let y = 0; y < outTileH; y++) {
-          const idx = (i * outTileSize + x) + (j * outTileSize + y) * outImageW ;
-          outputTensor.data[idx + outROffset] = results.output.data[x + y * outTileSize + outTileROffset];
-          outputTensor.data[idx + outGOffset] = results.output.data[x + y * outTileSize + outTileGOffset];
-          outputTensor.data[idx + outBOffset] = results.output.data[x + y * outTileSize + outTileBOffset];
+          const xim = i * outTileSizePre + x;
+          const yim = j * outTileSizePre + y;
+          const idx = (xim + yim * outImageW);
+          const xt = x + tilePadding*4;
+          const yt = y + tilePadding*4;
+          outputTensor.data[idx + outROffset] = results.output.data[xt + yt * outTileSize + outTileROffset];
+          outputTensor.data[idx + outGOffset] = results.output.data[xt + yt * outTileSize + outTileGOffset];
+          outputTensor.data[idx + outBOffset] = results.output.data[xt + yt * outTileSize + outTileBOffset];
         }
       }
       currentTile++;
@@ -160,7 +176,7 @@ async function run(inputTensor) {
 
     const end = Date.now();
     console.log(`Execution time: ${end - start} ms`);
-    //document.getElementById("executeTime").innerHTML = `Execution time: ${end - start} ms`;
+    document.getElementById("executeTime").innerHTML = `Execution time: ${end - start} ms`;
   } catch (e) {
     console.log(e);
   }
