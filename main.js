@@ -75,16 +75,19 @@ async function tileProc(inputTensor){
   const outGOffset = outImageW*outImageH;
   const outBOffset = outImageW*outImageH*2;
 
-  const tileSize = 256;
+  const tileSize = 128;
   const tilesx = Math.ceil( inputDims[3] / tileSize );
   const tilesy = Math.ceil( inputDims[2] / tileSize );
 
   const data = inputTensor.data;
 
   console.log(inputTensor);
+  const numTiles = tilesx*tilesy;
+  var currentTile = 0;
 
   for (let i = 0; i < tilesx; i++) {
     for (let j = 0; j < tilesy; j++) {
+      const ti = Date.now();
       const tileW = Math.min(tileSize, imageW - i * tileSize);
       const tileH = Math.min(tileSize, imageH - j * tileSize);
       console.log("tileW: " + tileW + " tileH: " + tileH);
@@ -105,7 +108,6 @@ async function tileProc(inputTensor){
       }
 
       const tile = new ort.Tensor("float32", tileData, [1, 3, tileSize, tileSize]);
-      console.log(tile);
       const resultspre = await session1.run({input: tile});
       console.log("pre dims:" + resultspre.output.dims);
       const feed2 = { input: tile, input_pre: resultspre.output };
@@ -129,18 +131,13 @@ async function tileProc(inputTensor){
           outputTensor.data[idx + outBOffset] = results.output.data[x + y * outTileSize + outTileBOffset];
         }
       }
-      // for (let x = 0; x < tileW; x++) {
-      //   for (let y = 0; y < tileH; y++) {
-      //     const idx = (i * tileSize + x) + (j * tileSize + y) * outImageW ;
-      //     outputTensor.data[idx + outROffset] = tile.data[x + y * tileW + tileROffset];
-      //     outputTensor.data[idx + outGOffset] = tile.data[x + y * tileW + tileGOffset];
-      //     outputTensor.data[idx + outBOffset] = tile.data[x + y * tileW + tileBOffset];
-      //   }
-      // }
+      currentTile++;
+      const dt = Date.now() - ti;
+      const remTime = (numTiles - currentTile) * dt;
+      console.log("tile " + currentTile + " of " + numTiles + " took " + dt + " ms, remaining time: " + remTime + " ms");
     }
   }
   console.log("output dims:" + outputTensor.dims);
-  console.log(outputTensor);
   return outputTensor;
 
 }
@@ -148,24 +145,6 @@ async function tileProc(inputTensor){
 async function run(inputTensor) {
   try {
     const start = Date.now();
-
-    // const sessionOption1 = { executionProviders: ['webgl'], logSeverityLevel: 0 };
-    // const session1 = await ort.InferenceSession.create('./esrgan-small-pre.onnx', sessionOption1);
-    // const sessionOption2 = { executionProviders: ['wasm'], logSeverityLevel: 0 };
-    // const session2 = await ort.InferenceSession.create('./esrgan-small-end.onnx', sessionOption2);
-
-    // // prepare feeds. use model input names as keys.
-    // //const feeds = { input: new ort.Tensor('float32', inputData, dims) };
-    // const feeds = { input: inputTensor };
-
-    // // feed inputs and run
-    // const resultspre = await session1.run(feeds);
-    // const end1 = Date.now();
-    // console.log(`Execution time pre: ${end1 - start} ms`);
-    // const feed2 = { input: inputTensor, input_pre: resultspre.output };
-    // const results = await session2.run(feed2);
-    // const end2 = Date.now();
-    // console.log(`Execution time end: ${end2 - end1} ms`);
 
     const result = await tileProc(inputTensor);
     console.log("output dims:" + result.dims);
@@ -181,7 +160,7 @@ async function run(inputTensor) {
 
     const end = Date.now();
     console.log(`Execution time: ${end - start} ms`);
-    document.getElementById("executeTime").innerHTML = `Execution time: ${end - start} ms`;
+    //document.getElementById("executeTime").innerHTML = `Execution time: ${end - start} ms`;
   } catch (e) {
     console.log(e);
   }
